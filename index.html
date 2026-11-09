@@ -109,10 +109,15 @@ const RELAYS = [
 /* ==================================================================
    BAGIAN 2 - DATA LOGIN (disimpan di browser)
    ================================================================== */
-const $ = id => document.getElementById(id);
-function simpan(k, v) { try { v ? localStorage.setItem(k, v) : localStorage.removeItem(k); } catch {} }
-function baca(k) { try { return localStorage.getItem(k) || ""; } catch { return ""; } }
-
+const memori = {};
+function simpan(k, v) {
+  if (v) memori[k] = v; else delete memori[k];
+  try { v ? localStorage.setItem(k, v) : localStorage.removeItem(k); } catch {}
+}
+function baca(k) {
+  if (memori[k]) return memori[k];
+  try { return localStorage.getItem(k) || ""; } catch { return ""; }
+}
 /* ==================================================================
    BAGIAN 3 - KONEKSI MQTT
    ================================================================== */
