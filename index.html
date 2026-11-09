@@ -137,32 +137,45 @@ function badge(id, teks, ok) {
 
 function hubungkan() {
   const host = baca("host"), user = baca("user"), pass = baca("pass");
- if (!host || !user || !pass) {
-   $("kartuLogin").classList.remove("hidden");
-   return;
-};
-  client.onMessageArrived = pesanMasuk;
+  if (!host || !user || !pass) {
+    $("kartuLogin").classList.remove("hidden");
+    return;
+  }
 
-  client.connect({
+  badge("statusServer", "menghubungkan…", null);
+  pesan("Menghubungkan ke " + host + " …");
+
+  // 1) buat client DULU
+  const c = new Paho.MQTT.Client(host, WS_PORT, "/mqtt", "web_" + Math.random().toString(16).slice(2, 10));
+  client = c;
+
+  // 2) baru pasang handler
+  c.onConnectionLost = () => {
+    badge("statusServer", "terputus, mencoba lagi…", false);
+    setTimeout(hubungkan, 3000);
+  };
+  c.onMessageArrived = pesanMasuk;
+
+  // 3) terakhir connect
+  c.connect({
     useSSL: true, userName: user, password: pass, keepAliveInterval: 30,
     onSuccess: () => {
       badge("statusServer", "terhubung", true);
       pesan("");
-      client.subscribe(PREFIX + "/status");
-      client.subscribe(PREFIX + "/online");
-      client.subscribe(PREFIX + "/log");
+      c.subscribe(PREFIX + "/status");
+      c.subscribe(PREFIX + "/online");
+      c.subscribe(PREFIX + "/log");
     },
-onFailure: e => {
-  badge("statusServer", "gagal", false);
-  pesan("Gagal terhubung: " + (e.errorMessage || "cek URL, username, password"), true);
-  simpan("pass");
-  $("inHost").value = baca("host");
-  $("inUser").value = baca("user");
-  $("kartuLogin").classList.remove("hidden");
-}
+    onFailure: e => {
+      badge("statusServer", "gagal", false);
+      pesan("Gagal terhubung: " + (e.errorMessage || "cek URL, username, password"), true);
+      simpan("pass");
+      $("inHost").value = baca("host");
+      $("inUser").value = baca("user");
+      $("kartuLogin").classList.remove("hidden");
+    }
   });
 }
-
 // Kirim perintah ke ESP
 function kirim(nama, nilai) {
   if (!client || !client.isConnected()) return pesan("Belum terhubung ke server.", true);
