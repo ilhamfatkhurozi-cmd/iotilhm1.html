@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Kontrol Inkubator</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mqtt/dist/mqtt.min.js"></script>
 <style>
   :root { --bg:#f3f5f7; --card:#fff; --text:#1d2733; --muted:#6b7785; --on:#1f9d55; --off:#9aa5b1; --warn:#d64545; --accent:#2f6fed; }
   @media (prefers-color-scheme: dark) {
@@ -137,52 +137,40 @@ function badge(id, teks, ok) {
 }
 
 function hubungkan() {
-  const host = "ilhamiotayam.s1.eu.hivemq.cloud", user = "ilhamiot1", pass = "ayam1";
-  if (!host || !user || !pass) {
-    $("kartuLogin").classList.remove("hidden");
-    return;
-  }
+  const host = "ilhamiotayam.s1.eu.hivemq.cloud", user = "ISI_USERNAME", pass = "ISI_PASSWORD";
 
+  if (client) { try { client.end(true); } catch {} }
   badge("statusServer", "menghubungkan…", null);
   pesan("Menghubungkan ke " + host + " …");
 
-  // 1) buat client DULU
-  const c = new Paho.MQTT.Client(host, WS_PORT, "/mqtt", "web_" + Math.random().toString(16).slice(2, 10));
+  const c = mqtt.connect("wss://" + host + ":" + WS_PORT + "/mqtt", {
+    username: user,
+    password: pass,
+    clientId: "web_" + Math.random().toString(16).slice(2, 10),
+    reconnectPeriod: 3000,
+    connectTimeout: 10000
+  });
   client = c;
 
-  // 2) baru pasang handler
-  c.onConnectionLost = () => {
-    badge("statusServer", "terputus, mencoba lagi…", false);
-    setTimeout(hubungkan, 3000);
-  };
-  c.onMessageArrived = pesanMasuk;
-
-  // 3) terakhir connect
-  c.connect({
-    useSSL: true, userName: user, password: pass, keepAliveInterval: 30,
-    onSuccess: () => {
-      badge("statusServer", "terhubung", true);
-      pesan("");
-      c.subscribe(PREFIX + "/status");
-      c.subscribe(PREFIX + "/online");
-      c.subscribe(PREFIX + "/log");
-    },
-    onFailure: e => {
-      badge("statusServer", "gagal", false);
-      pesan("Gagal terhubung: " + (e.errorMessage || "cek URL, username, password"), true);
-      simpan("pass");
-      $("inHost").value = baca("host");
-      $("inUser").value = baca("user");
-      $("kartuLogin").classList.remove("hidden");
-    }
+  c.on("connect", () => {
+    badge("statusServer", "terhubung", true);
+    pesan("");
+    c.subscribe([PREFIX + "/status", PREFIX + "/online", PREFIX + "/log"]);
+  });
+  c.on("message", (t, payload) => {
+    pesanMasuk({ destinationName: t, payloadString: payload.toString() });
+  });
+  c.on("reconnect", () => badge("statusServer", "mencoba lagi…", null));
+  c.on("error", e => {
+    badge("statusServer", "gagal", false);
+    pesan("Gagal terhubung: " + e.message, true);
+    if (/auth/i.test(e.message)) c.end(true);
   });
 }
 // Kirim perintah ke ESP
 function kirim(nama, nilai) {
-  if (!client || !client.isConnected()) return pesan("Belum terhubung ke server.", true);
-  const m = new Paho.MQTT.Message(String(nilai));
-  m.destinationName = PREFIX + "/cmd/" + nama;
-  client.send(m);
+  if (!client || !client.connected) return pesan("Belum terhubung ke server.", true);
+  client.publish(PREFIX + "/cmd/" + nama, String(nilai));
 }
 
 // Terima data dari ESP
