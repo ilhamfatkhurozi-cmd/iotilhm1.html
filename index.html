@@ -109,6 +109,7 @@ const RELAYS = [
 /* ==================================================================
    BAGIAN 2 - DATA LOGIN (disimpan di browser)
    ================================================================== */
+const $ = id => document.getElementById(id);
 const memori = {};
 function simpan(k, v) {
   if (v) memori[k] = v; else delete memori[k];
