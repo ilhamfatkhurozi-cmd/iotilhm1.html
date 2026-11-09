@@ -41,8 +41,8 @@
   <div class="card" id="kartuLogin">
     <div class="muted" style="margin-bottom:8px">Masukkan data broker MQTT (disimpan hanya di browser ini)</div>
     <input id="inHost" placeholder="ilhamiotayam.s1.eu.hivemq.cloud" autocomplete="off">
-    <input id="inUser" placeholder="ilhamiot1" autocomplete="off">
-    <input id="inPass" type="ayam1" placeholder="ayam1" autocomplete="off">
+    <input id="inUser" placeholder="username" autocomplete="off">
+    <input id="inPass" type="password" placeholder="password" autocomplete="off">
     <button class="primary" id="btnSimpan">Hubungkan</button>
   </div>
 
@@ -132,13 +132,10 @@ function badge(id, teks, ok) {
 
 function hubungkan() {
   const host = baca("host"), user = baca("user"), pass = baca("pass");
-  if (!host || !user) return;
-
-  client = new Paho.MQTT.Client(host, WS_PORT, "/mqtt", "web_" + Math.random().toString(16).slice(2, 10));
-  client.onConnectionLost = () => {
-    badge("statusServer", "terputus, mencoba lagi…", false);
-    setTimeout(hubungkan, 3000);
-  };
+ if (!host || !user || !pass) {
+   $("kartuLogin").classList.remove("hidden");
+   return;
+};
   client.onMessageArrived = pesanMasuk;
 
   client.connect({
@@ -150,10 +147,14 @@ function hubungkan() {
       client.subscribe(PREFIX + "/online");
       client.subscribe(PREFIX + "/log");
     },
-    onFailure: e => {
-      badge("statusServer", "gagal", false);
-      pesan("Gagal terhubung: " + (e.errorMessage || "cek URL, username, password") , true);
-    }
+onFailure: e => {
+  badge("statusServer", "gagal", false);
+  pesan("Gagal terhubung: " + (e.errorMessage || "cek URL, username, password"), true);
+  simpan("pass");
+  $("inHost").value = baca("host");
+  $("inUser").value = baca("user");
+  $("kartuLogin").classList.remove("hidden");
+}
   });
 }
 
@@ -240,7 +241,7 @@ $("btnKeluar").onclick = () => { simpan("host"); simpan("user"); simpan("pass");
    BAGIAN 6 - MULAI
    ================================================================== */
 function mulai() {
-  const ada = !!(baca("host") && baca("user"));
+  const ada = !!(baca("host") && baca("user") && baca("pass"));
   $("kartuLogin").classList.toggle("hidden", ada);
   if (ada) hubungkan();
 }
