@@ -153,6 +153,7 @@ function hubungkan() {
     connectTimeout: 10000
   });
   client = c;
+  // ... (lanjutan kode event c.on di bawahnya tetap sama)
 
   c.on("connect", () => {
     badge("statusServer", "terhubung", true);
