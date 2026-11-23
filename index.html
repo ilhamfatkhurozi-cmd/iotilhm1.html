@@ -24,9 +24,11 @@
   button.on { background:var(--on); }
   button.primary { background:var(--accent); }
   button:disabled { opacity:.45; cursor:not-allowed; }
+  input { font:inherit; width:100%; padding:10px; border-radius:10px; border:1px solid var(--off); background:var(--bg); color:var(--text); margin-bottom:8px; }
   .relay + .relay { border-top:1px solid rgba(128,128,128,.2); margin-top:12px; padding-top:12px; }
   #pesan { margin-top:12px; font-size:.85rem; min-height:1.2em; }
   #log { font-family: monospace; font-size:.78rem; white-space:pre-wrap; max-height:140px; overflow:auto; }
+  .hidden { display:none; }
 </style>
 </head>
 <body>
@@ -34,6 +36,14 @@
   <h1>🥚 Kontrol Inkubator</h1>
   <div class="muted">Server: <span id="statusServer" class="badge">belum terhubung</span>
       Alat: <span id="statusAlat" class="badge">?</span></div>
+
+  <!-- Kunci akses alat: disimpan hanya di browser -->
+  <div class="card" id="kartuLogin">
+    <div class="muted" style="margin-bottom:8px">Masukkan Username & Password alat (disimpan di browser ini)</div>
+    <input id="inUser" placeholder="Username alat" autocomplete="off">
+    <input id="inPass" type="password" placeholder="Password alat" autocomplete="off">
+    <button class="primary" id="btnSimpan">Masuk & Hubungkan</button>
+  </div>
 
   <div class="card">
     <div class="muted">Suhu</div>
@@ -70,16 +80,21 @@
     <div id="log" class="muted">-</div>
   </div>
 
+  <div class="card row">
+    <span class="muted">Ganti akun / kunci alat?</span>
+    <button id="btnKeluar">Keluar & Hapus kunci</button>
+  </div>
+
   <div id="pesan" class="muted"></div>
 </main>
 
 <script>
 /* ==================================================================
-   BAGIAN 1 - PENGATURAN
+   BAGIAN 1 - PENGATURAN BROKER & RELAY
    ================================================================== */
-const PREFIX = "ilham-inkubator-7f3k9x2q";
 const BROKER_HOST = "broker.hivemq.com";
-const WS_PORT = 8884; // Port WebSocket TLS public broker HiveMQ
+const WS_PORT = 8884;
+let PREFIX = ""; // Otomatis terbentuk dari Username + Password
 
 const RELAYS = [
   { nama: "Relay 1 - Lampu ruangan", cmd: "lampu",   idx: 0, kunci: s => s.mode === 1 },
@@ -89,6 +104,15 @@ const RELAYS = [
 ];
 
 const $ = id => document.getElementById(id);
+const memori = {};
+function simpan(k, v) {
+  if (v) memori[k] = v; else delete memori[k];
+  try { v ? localStorage.setItem(k, v) : localStorage.removeItem(k); } catch {}
+}
+function baca(k) {
+  if (memori[k]) return memori[k];
+  try { return localStorage.getItem(k) || ""; } catch { return ""; }
+}
 
 /* ==================================================================
    BAGIAN 2 - KONEKSI MQTT
@@ -200,11 +224,43 @@ $("btnMotorAuto").onclick = () => status && kirim("motorauto", status.motorAuto 
 $("btnSensor").onclick    = () => status && kirim("sensor", status.sensor === 1 ? 0 : 1);
 $("btnMulai").onclick     = () => { if (confirm("Mulai hitung hari penetasan dari sekarang?")) kirim("mulai", 1); };
 
+$("btnSimpan").onclick = () => {
+  const u = $("inUser").value.trim();
+  const p = $("inPass").value.trim();
+  if (!u || !p) return pesan("Isi username dan password.", true);
+  if (u.includes("/") || p.includes("/")) return pesan("Jangan gunakan tanda garis miring (/).", true);
+  simpan("iot_user", u);
+  simpan("iot_pass", p);
+  mulai();
+};
+
+$("btnKeluar").onclick = () => {
+  simpan("iot_user");
+  simpan("iot_pass");
+  location.reload();
+};
+
 /* ==================================================================
    BAGIAN 4 - MULAI
    ================================================================== */
+function mulai() {
+  const u = baca("iot_user");
+  const p = baca("iot_pass");
+  $("inUser").value = u;
+
+  if (!u || !p) {
+    $("kartuLogin").classList.remove("hidden");
+    return;
+  }
+
+  // Membentuk PREFIX unik dari gabungan username dan password
+  PREFIX = "ilham-inkubator-" + u + "-" + p;
+  $("kartuLogin").classList.add("hidden");
+  hubungkan();
+}
+
 buatDaftarRelay();
-hubungkan();
+mulai();
 </script>
 </body>
 </html>
