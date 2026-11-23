@@ -94,7 +94,7 @@
    BAGIAN 1 - PENGATURAN
    ================================================================== */
 // HARUS SAMA dengan PREFIX di kode ESP
-const PREFIX = "ilhamwebiot";
+const PREFIX = "ilham-inkubator-7f3k9x2q";
 const WS_PORT = 8884;            // port WebSocket aman (TLS) HiveMQ Cloud
 
 // Daftar relay. 'cmd' = nama perintah ke ESP, 'idx' = urutan di status.r
@@ -136,14 +136,18 @@ function badge(id, teks, ok) {
   $(id).className = "badge " + (ok === true ? "ok" : ok === false ? "bad" : "");
 }
 
-function hubungkan() {
-  const host = baca("host")
-  const user = baca("user")
-  const pass = baca("pass")
+const host = "broker.hivemq.com";
 
-  if (client) { try { client.end(true); } catch {} }
-  badge("statusServer", "menghubungkan…", null);
-  pesan("Menghubungkan ke " + host + " …");
+if (client) { try { client.end(true); } catch {} }
+badge("statusServer", "menghubungkan…", null);
+pesan("Menghubungkan ke " + host + " …");
+
+const c = mqtt.connect("wss://" + host + ":8884/mqtt", {
+  clientId: "web_" + Math.random().toString(16).slice(2, 10),
+  reconnectPeriod: 3000,
+  connectTimeout: 10000
+});
+client = c;
 
   const c = mqtt.connect("wss://" + host + ":" + WS_PORT + "/mqtt", {
     username: user,
@@ -251,9 +255,8 @@ $("btnKeluar").onclick = () => { simpan("host"); simpan("user"); simpan("pass");
    BAGIAN 6 - MULAI
    ================================================================== */
 function mulai() {
-  const ada = !!(baca("host") && baca("user") && baca("pass"));
-  $("kartuLogin").classList.toggle("hidden", ada);
-  if (ada) hubungkan();
+  $("kartuLogin").classList.add("hidden");
+  hubungkan();
 }
 
 buatDaftarRelay();
