@@ -24,32 +24,21 @@
   button.on { background:var(--on); }
   button.primary { background:var(--accent); }
   button:disabled { opacity:.45; cursor:not-allowed; }
-  input { font:inherit; width:100%; padding:10px; border-radius:10px; border:1px solid var(--off); background:var(--bg); color:var(--text); margin-bottom:8px; }
   .relay + .relay { border-top:1px solid rgba(128,128,128,.2); margin-top:12px; padding-top:12px; }
   #pesan { margin-top:12px; font-size:.85rem; min-height:1.2em; }
   #log { font-family: monospace; font-size:.78rem; white-space:pre-wrap; max-height:140px; overflow:auto; }
-  .hidden { display:none; }
 </style>
 </head>
 <body>
 <main>
   <h1>🥚 Kontrol Inkubator</h1>
   <div class="muted">Server: <span id="statusServer" class="badge">belum terhubung</span>
-    &nbsp; Alat: <span id="statusAlat" class="badge">?</span></div>
-
-  <!-- Login broker: disimpan di browser, TIDAK ada di kode -->
-  <div class="card" id="kartuLogin">
-    <div class="muted" style="margin-bottom:8px">Masukkan data broker MQTT (disimpan hanya di browser ini)</div>
-    <input id="inHost" placeholder="ilhamiotayam.s1.eu.hivemq.cloud" autocomplete="off">
-    <input id="inUser" placeholder="username" autocomplete="off">
-    <input id="inPass" type="password" placeholder="password" autocomplete="off">
-    <button class="primary" id="btnSimpan">Hubungkan</button>
-  </div>
+      Alat: <span id="statusAlat" class="badge">?</span></div>
 
   <div class="card">
     <div class="muted">Suhu</div>
     <div class="temp"><span id="suhu">--</span><span style="font-size:1.4rem"> °C</span></div>
-    <div class="muted" style="margin-top:8px">Hari penetasan ke: <b id="hariKe">--</b> &nbsp;|&nbsp; Diperbarui: <span id="update">-</span></div>
+    <div class="muted" style="margin-top:8px">Hari penetasan ke: <b id="hariKe">--</b>  |  Diperbarui: <span id="update">-</span></div>
   </div>
 
   <div class="card">
@@ -81,11 +70,6 @@
     <div id="log" class="muted">-</div>
   </div>
 
-  <div class="card row">
-    <span class="muted">Ganti akun broker?</span>
-    <button id="btnKeluar">Hapus data login</button>
-  </div>
-
   <div id="pesan" class="muted"></div>
 </main>
 
@@ -93,12 +77,10 @@
 /* ==================================================================
    BAGIAN 1 - PENGATURAN
    ================================================================== */
-// HARUS SAMA dengan PREFIX di kode ESP
 const PREFIX = "ilham-inkubator-7f3k9x2q";
-const WS_PORT = 8884;            // port WebSocket aman (TLS) HiveMQ Cloud
+const BROKER_HOST = "broker.hivemq.com";
+const WS_PORT = 8884; // Port WebSocket TLS public broker HiveMQ
 
-// Daftar relay. 'cmd' = nama perintah ke ESP, 'idx' = urutan di status.r
-// 'kunci' = kapan tombol dikunci
 const RELAYS = [
   { nama: "Relay 1 - Lampu ruangan", cmd: "lampu",   idx: 0, kunci: s => s.mode === 1 },
   { nama: "Relay 2 - Lampu pemanas", cmd: "pemanas", idx: 1, kunci: s => s.mode === 1 },
@@ -106,24 +88,13 @@ const RELAYS = [
   { nama: "Relay 4 - Humidifier",    cmd: "humid",   idx: 3, kunci: s => s.mode === 1 }
 ];
 
-/* ==================================================================
-   BAGIAN 2 - DATA LOGIN (disimpan di browser)
-   ================================================================== */
 const $ = id => document.getElementById(id);
-const memori = {};
-function simpan(k, v) {
-  if (v) memori[k] = v; else delete memori[k];
-  try { v ? localStorage.setItem(k, v) : localStorage.removeItem(k); } catch {}
-}
-function baca(k) {
-  if (memori[k]) return memori[k];
-  try { return localStorage.getItem(k) || ""; } catch { return ""; }
-}
+
 /* ==================================================================
-   BAGIAN 3 - KONEKSI MQTT
+   BAGIAN 2 - KONEKSI MQTT
    ================================================================== */
 let client = null;
-let status = null;       // status terakhir dari ESP
+let status = null;
 let alatOnline = false;
 
 function pesan(teks, error) {
@@ -136,51 +107,41 @@ function badge(id, teks, ok) {
   $(id).className = "badge " + (ok === true ? "ok" : ok === false ? "bad" : "");
 }
 
-const host = "broker.hivemq.com";
+function hubungkan() {
+  if (client) { try { client.end(true); } catch {} }
+  badge("statusServer", "menghubungkan…", null);
+  pesan("Menghubungkan ke " + BROKER_HOST + " …");
 
-if (client) { try { client.end(true); } catch {} }
-badge("statusServer", "menghubungkan…", null);
-pesan("Menghubungkan ke " + host + " …");
-
-const c = mqtt.connect("wss://" + host + ":8884/mqtt", {
-  clientId: "web_" + Math.random().toString(16).slice(2, 10),
-  reconnectPeriod: 3000,
-  connectTimeout: 10000
-});
-client = c;
-
-  const c = mqtt.connect("wss://" + host + ":" + WS_PORT + "/mqtt", {
-    username: user,
-    password: pass,
+  const c = mqtt.connect("wss://" + BROKER_HOST + ":" + WS_PORT + "/mqtt", {
     clientId: "web_" + Math.random().toString(16).slice(2, 10),
     reconnectPeriod: 3000,
     connectTimeout: 10000
   });
   client = c;
-  // ... (lanjutan kode event c.on di bawahnya tetap sama)
 
   c.on("connect", () => {
     badge("statusServer", "terhubung", true);
     pesan("");
     c.subscribe([PREFIX + "/status", PREFIX + "/online", PREFIX + "/log"]);
   });
+
   c.on("message", (t, payload) => {
     pesanMasuk({ destinationName: t, payloadString: payload.toString() });
   });
+
   c.on("reconnect", () => badge("statusServer", "mencoba lagi…", null));
+
   c.on("error", e => {
     badge("statusServer", "gagal", false);
     pesan("Gagal terhubung: " + e.message, true);
-    if (/auth/i.test(e.message)) c.end(true);
   });
 }
-// Kirim perintah ke ESP
+
 function kirim(nama, nilai) {
   if (!client || !client.connected) return pesan("Belum terhubung ke server.", true);
   client.publish(PREFIX + "/cmd/" + nama, String(nilai));
 }
 
-// Terima data dari ESP
 function pesanMasuk(m) {
   const t = m.destinationName, isi = m.payloadString;
   if (t === PREFIX + "/status") {
@@ -198,7 +159,7 @@ function pesanMasuk(m) {
 }
 
 /* ==================================================================
-   BAGIAN 4 - TAMPILAN
+   BAGIAN 3 - TAMPILAN & TOMBOL
    ================================================================== */
 function tombolOnOff(btn, aktif, teksOn, teksOff) {
   btn.textContent = aktif ? teksOn : teksOff;
@@ -234,33 +195,16 @@ function gambar() {
   });
 }
 
-/* ==================================================================
-   BAGIAN 5 - TOMBOL
-   ================================================================== */
 $("btnMode").onclick      = () => status && kirim("mode", status.mode === 1 ? 0 : 1);
 $("btnMotorAuto").onclick = () => status && kirim("motorauto", status.motorAuto === 1 ? 0 : 1);
 $("btnSensor").onclick    = () => status && kirim("sensor", status.sensor === 1 ? 0 : 1);
 $("btnMulai").onclick     = () => { if (confirm("Mulai hitung hari penetasan dari sekarang?")) kirim("mulai", 1); };
 
-$("btnSimpan").onclick = () => {
-  const h = $("inHost").value.trim().replace(/^(wss?|mqtts?|https?):\/\//, "").replace(/[:\/].*$/, "");
-  const u = $("inUser").value.trim(), p = $("inPass").value;
-  if (!h || !u || !p) return pesan("Isi semua kolom.", true);
-  simpan("host", h); simpan("user", u); simpan("pass", p);
-  mulai();
-};
-$("btnKeluar").onclick = () => { simpan("host"); simpan("user"); simpan("pass"); location.reload(); };
-
 /* ==================================================================
-   BAGIAN 6 - MULAI
+   BAGIAN 4 - MULAI
    ================================================================== */
-function mulai() {
-  $("kartuLogin").classList.add("hidden");
-  hubungkan();
-}
-
 buatDaftarRelay();
-mulai();
+hubungkan();
 </script>
 </body>
 </html>
