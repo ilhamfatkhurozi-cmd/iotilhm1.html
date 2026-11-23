@@ -120,6 +120,7 @@ function baca(k) {
 let client = null;
 let status = null;
 let alatOnline = false;
+let timerOffline = null;
 
 function pesan(teks, error) {
   $("pesan").textContent = teks;
@@ -171,6 +172,16 @@ function pesanMasuk(m) {
   if (t === PREFIX + "/status") {
     try { status = JSON.parse(isi); } catch { return; }
     $("update").textContent = new Date().toLocaleTimeString("id-ID");
+
+    alatOnline = true;
+    badge("statusAlat", "ESP online", true);
+
+    clearTimeout(timerOffline);
+    timerOffline = setTimeout(() => {
+      alatOnline = false;
+      badge("statusAlat", "ESP offline", false);
+    }, 6000);
+
     gambar();
   } else if (t === PREFIX + "/online") {
     alatOnline = (isi === "1");
@@ -181,7 +192,6 @@ function pesanMasuk(m) {
     el.textContent = (jam + "  " + isi + "\n" + (el.textContent === "-" ? "" : el.textContent)).split("\n").slice(0, 8).join("\n");
   }
 }
-
 /* ==================================================================
    BAGIAN 3 - TAMPILAN & TOMBOL
    ================================================================== */
