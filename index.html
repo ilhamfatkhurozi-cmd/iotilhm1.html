@@ -6,36 +6,87 @@
 <title>Kontrol Inkubator</title>
 <script src="https://cdn.jsdelivr.net/npm/mqtt/dist/mqtt.min.js"></script>
 <style>
-  :root { --bg:#f3f5f7; --card:#fff; --text:#1d2733; --muted:#6b7785; --on:#1f9d55; --off:#9aa5b1; --warn:#d64545; --accent:#2f6fed; }
-  @media (prefers-color-scheme: dark) {
-    :root { --bg:#12161b; --card:#1b2129; --text:#e8edf2; --muted:#93a0ae; --off:#4a5563; }
+  :root {
+    --card: rgba(16, 32, 52, .78);
+    --card-border: rgba(120, 170, 220, .18);
+    --text: #e6eef7;
+    --muted: #8fa6bf;
+    --on: #1fa463;
+    --off: #53657a;
+    --warn: #e0524f;
+    --accent: #2f7be5;
+    --heat: #f5a524;
+    --lo: #38c6e8;
+    --hi: #e8738a;
   }
   * { box-sizing: border-box; }
-  body { margin:0; font-family: system-ui, sans-serif; background:var(--bg); color:var(--text); }
-  main { max-width: 560px; margin: 0 auto; padding: 16px; }
-  h1 { font-size: 1.3rem; margin: 8px 0 4px; }
-  .card { background:var(--card); border-radius:14px; padding:16px; margin-top:12px; box-shadow:0 1px 3px rgba(0,0,0,.08); }
-  .row { display:flex; align-items:center; justify-content:space-between; gap:12px; }
-  .muted { color:var(--muted); font-size:.85rem; }
-  .temp { font-size:3rem; font-weight:700; line-height:1; }
-  .badge { display:inline-block; padding:2px 10px; border-radius:99px; font-size:.78rem; color:#fff; background:var(--off); }
-  .badge.ok { background:var(--on); } .badge.bad { background:var(--warn); }
-  button { font:inherit; border:0; border-radius:10px; padding:10px 16px; cursor:pointer; color:#fff; background:var(--off); min-width:84px; }
-  button.on { background:var(--on); }
-  button.primary { background:var(--accent); }
-  button:disabled { opacity:.45; cursor:not-allowed; }
-  input { font:inherit; width:100%; padding:10px; border-radius:10px; border:1px solid var(--off); background:var(--bg); color:var(--text); margin-bottom:8px; }
-  .relay + .relay { border-top:1px solid rgba(128,128,128,.2); margin-top:12px; padding-top:12px; }
-  #pesan { margin-top:12px; font-size:.85rem; min-height:1.2em; }
-  #log { font-family: monospace; font-size:.78rem; white-space:pre-wrap; max-height:140px; overflow:auto; }
-  .hidden { display:none; }
+  html { min-height: 100%; }
+  body {
+    margin: 0; font-family: system-ui, sans-serif; color: var(--text);
+    background: linear-gradient(160deg, #09182b 0%, #0f2a47 50%, #17415f 100%) fixed;
+    min-height: 100vh;
+  }
+  main { max-width: 760px; margin: 0 auto; padding: 16px; }
+  h1 { font-size: 1.3rem; margin: 8px 0 6px; }
+  .card {
+    background: var(--card); border: 1px solid var(--card-border);
+    backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+    border-radius: 14px; padding: 16px; margin-top: 12px;
+    box-shadow: 0 4px 14px rgba(0,0,0,.25);
+  }
+  .row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .muted { color: var(--muted); font-size: .85rem; }
+  .temp { font-size: 3rem; font-weight: 700; line-height: 1; }
+  .badge { display: inline-block; padding: 2px 10px; border-radius: 99px; font-size: .78rem; color: #fff; background: var(--off); }
+  .badge.ok { background: var(--on); } .badge.bad { background: var(--warn); }
+  button { font: inherit; border: 0; border-radius: 10px; padding: 10px 16px; cursor: pointer; color: #fff; background: var(--off); min-width: 84px; }
+  button.on { background: var(--on); }
+  button.primary { background: var(--accent); }
+  button:disabled { opacity: .45; cursor: not-allowed; }
+  input { font: inherit; width: 100%; padding: 10px; border-radius: 10px; border: 1px solid var(--off); background: rgba(5, 14, 26, .6); color: var(--text); margin-bottom: 8px; }
+  #pesan { margin-top: 12px; font-size: .85rem; min-height: 1.2em; }
+  .hidden { display: none; }
+  .grid2 { display: flex; gap: 28px; flex-wrap: wrap; align-items: flex-end; }
+
+  /* Daftar relay: nama (kiri) | hasil aturan (kanan) | tombol */
+  .relay { display: grid; grid-template-columns: 1fr minmax(0, 230px) auto; gap: 12px; align-items: center; }
+  .relay + .relay { border-top: 1px solid rgba(128,160,200,.2); margin-top: 12px; padding-top: 12px; }
+  .info { font-size: .78rem; text-align: right; line-height: 1.35; }
+  .info .a { color: var(--text); }
+  .info .b { color: var(--muted); }
+  @media (max-width: 540px) {
+    .relay { grid-template-columns: 1fr auto; }
+    .info { grid-column: 1 / -1; grid-row: 2; text-align: left; }
+  }
+
+  /* Grafik */
+  #grafik { width: 100%; height: 230px; display: block; margin-top: 8px; }
+  .legend { display: flex; flex-wrap: wrap; gap: 14px; font-size: .78rem; color: var(--muted); margin-top: 6px; }
+  .legend i { display: inline-block; width: 14px; height: 3px; margin-right: 5px; vertical-align: middle; border-radius: 2px; }
+
+  /* Terminal */
+  #terminal {
+    background: #050d17; border: 1px solid rgba(120,170,220,.2); border-radius: 10px;
+    font-family: ui-monospace, Menlo, Consolas, monospace; font-size: .78rem;
+    height: 300px; overflow-y: auto; padding: 10px; margin-top: 8px; white-space: pre-wrap; word-break: break-word;
+  }
+  #terminal div { padding: 1px 0; }
+  #terminal .t { color: #5f7892; }
+  #terminal .ok { color: #4cd68a; }
+  #terminal .cmd { color: #5db4ff; }
+  #terminal .err { color: #ff7b78; }
+  #terminal .info { color: #c3d2e2; }
+  .termInput { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+  .termInput span { font-family: ui-monospace, Menlo, Consolas, monospace; color: #4cd68a; }
+  .termInput input { margin: 0; font-family: ui-monospace, Menlo, Consolas, monospace; }
+  .termInput button { min-width: 70px; }
 </style>
 </head>
 <body>
 <main>
   <h1>🥚 Kontrol Inkubator</h1>
   <div class="muted">Server: <span id="statusServer" class="badge">belum terhubung</span>
-      Alat: <span id="statusAlat" class="badge">?</span></div>
+      Alat: <span id="statusAlat" class="badge">?</span></div>
 
   <!-- Kunci akses alat: disimpan hanya di browser -->
   <div class="card" id="kartuLogin">
@@ -46,9 +97,21 @@
   </div>
 
   <div class="card">
-    <div class="muted">Suhu</div>
-    <div class="temp"><span id="suhu">--</span><span style="font-size:1.4rem"> °C</span></div>
-    <div class="muted" style="margin-top:8px">Hari penetasan ke: <b id="hariKe">--</b>  |  Diperbarui: <span id="update">-</span></div>
+    <div class="grid2">
+      <div>
+        <div class="muted">Suhu</div>
+        <div class="temp"><span id="suhu">--</span><span style="font-size:1.4rem"> °C</span></div>
+      </div>
+      <div>
+        <div class="muted">Batas minimal</div>
+        <div class="temp" style="font-size:2rem;color:var(--lo)"><span id="tmin">--</span><span style="font-size:1rem"> °C</span></div>
+      </div>
+      <div>
+        <div class="muted">Batas maksimal</div>
+        <div class="temp" style="font-size:2rem;color:var(--hi)"><span id="tmax">--</span><span style="font-size:1rem"> °C</span></div>
+      </div>
+    </div>
+    <div class="muted" style="margin-top:8px">Hari penetasan ke: <b id="hariKe">--</b>  |  Diperbarui: <span id="update">-</span></div>
   </div>
 
   <div class="card">
@@ -75,9 +138,33 @@
     </div>
   </div>
 
+  <!-- Grafik harian -->
   <div class="card">
-    <b>Catatan alat</b>
-    <div id="log" class="muted">-</div>
+    <div class="row">
+      <b>Grafik hari ini</b>
+      <span class="muted" id="infoHari">-</span>
+    </div>
+    <canvas id="grafik"></canvas>
+    <div class="legend">
+      <span><i style="background:var(--heat)"></i>Suhu</span>
+      <span><i style="background:var(--lo)"></i>Batas minimal</span>
+      <span><i style="background:var(--hi)"></i>Batas maksimal</span>
+      <span><i style="background:var(--on)"></i>Perubahan ON</span>
+      <span><i style="background:var(--warn)"></i>Perubahan OFF</span>
+      <span><i style="background:var(--accent)"></i>Perubahan lain</span>
+    </div>
+    <div class="muted" style="margin-top:6px">Data tersimpan di browser dan otomatis dikosongkan pukul 00:00.</div>
+  </div>
+
+  <!-- Terminal -->
+  <div class="card">
+    <b>Terminal</b>
+    <div id="terminal"></div>
+    <form class="termInput" id="formTerm" autocomplete="off">
+      <span>&gt;</span>
+      <input id="inTerm" placeholder="ketik: jadwal, suhu, motor, atau help" autocomplete="off" autocapitalize="off" spellcheck="false">
+      <button class="primary" type="submit">Kirim</button>
+    </form>
   </div>
 
   <div class="card row">
@@ -96,6 +183,12 @@ const BROKER_HOST = "broker.emqx.io";
 const WS_PORT = 8084;
 let PREFIX = ""; // Otomatis terbentuk dari Username + Password
 
+const T_MIN = 30, T_MAX = 42;            // batas aman pengaturan suhu (°C)
+const MAX_JADWAL_MOTOR = 12;
+const SAMPLE_MS = 15000;                 // jarak pencatatan titik grafik
+const MAX_LOG = 600, MAX_PTS = 6000;
+
+// kunci(s) = true berarti tombol manual DIKUNCI karena relay diatur otomatis
 const RELAYS = [
   { nama: "Relay 1 - Lampu ruangan", cmd: "lampu",   idx: 0, kunci: s => s.mode === 1 },
   { nama: "Relay 2 - Lampu pemanas", cmd: "pemanas", idx: 1, kunci: s => s.mode === 1 },
@@ -115,10 +208,260 @@ function baca(k) {
 }
 
 /* ==================================================================
-   BAGIAN 2 - KONEKSI MQTT
+   BAGIAN 2 - PENYIMPANAN
+   - data    : grafik & terminal, dikosongkan tiap pukul 00:00
+   - setelan : jadwal & batas suhu, TIDAK direset
+   ================================================================== */
+const p2 = n => String(n).padStart(2, "0");
+const jam = (t, detik = true) => {
+  const d = new Date(t);
+  return p2(d.getHours()) + ":" + p2(d.getMinutes()) + (detik ? ":" + p2(d.getSeconds()) : "");
+};
+const tanggalKey = (t = Date.now()) => {
+  const d = new Date(t);
+  return d.getFullYear() + "-" + p2(d.getMonth() + 1) + "-" + p2(d.getDate());
+};
+const awalHari = (t = Date.now()) => { const d = new Date(t); d.setHours(0, 0, 0, 0); return d.getTime(); };
+
+// pts = [waktu, suhu, min, max], ev = [waktu, teks, tipe], log = [waktu, teks, kelas]
+let data = { tgl: tanggalKey(), pts: [], ev: [], log: [] };
+let setelan = { pagi: null, sore: null, min: null, max: null, jm: [] };
+let lastPt = 0;
+
+function kunciData()    { return "inkubator_data2_" + (baca("iot_user") || "x"); }
+function kunciSetelan() { return "inkubator_set_" + (baca("iot_user") || "x"); }
+
+function muatData() {
+  data = { tgl: tanggalKey(), pts: [], ev: [], log: [] };
+  try {
+    const raw = localStorage.getItem(kunciData());
+    if (raw) { const d = JSON.parse(raw); if (d && d.tgl === tanggalKey()) data = d; }
+  } catch {}
+}
+function simpanData() { try { localStorage.setItem(kunciData(), JSON.stringify(data)); } catch {} }
+
+function muatSetelan() {
+  try {
+    const raw = localStorage.getItem(kunciSetelan());
+    if (raw) { const s = JSON.parse(raw); if (s) setelan = Object.assign(setelan, s); }
+  } catch {}
+  if (!Array.isArray(setelan.jm)) setelan.jm = [];
+}
+function simpanSetelan() { try { localStorage.setItem(kunciSetelan(), JSON.stringify(setelan)); } catch {} }
+
+function cekGantiHari() {
+  if (data.tgl !== tanggalKey()) {
+    data = { tgl: tanggalKey(), pts: [], ev: [], log: [] };
+    lastPt = 0;
+    $("terminal").innerHTML = "";
+    simpanData();
+    tulis("Hari baru, data grafik & terminal direset (00:00).", "info");
+    gambarGrafik();
+  }
+}
+setInterval(cekGantiHari, 1000);
+
+/* ==================================================================
+   BAGIAN 3 - TERMINAL (tampilan)
+   ================================================================== */
+function tampilBaris(t, teks, kelas) {
+  const term = $("terminal");
+  const dekat = term.scrollTop + term.clientHeight >= term.scrollHeight - 30;
+  const div = document.createElement("div");
+  div.className = kelas;
+  const s = document.createElement("span");
+  s.className = "t";
+  s.textContent = "[" + jam(t) + "] ";
+  div.appendChild(s);
+  div.appendChild(document.createTextNode(teks));
+  term.appendChild(div);
+  if (dekat) term.scrollTop = term.scrollHeight;
+}
+
+function tulis(teks, kelas = "info", simpanKe = true) {
+  const t = Date.now();
+  tampilBaris(t, teks, kelas);
+  if (simpanKe) {
+    data.log.push([t, teks, kelas]);
+    if (data.log.length > MAX_LOG) data.log.shift();
+    simpanData();
+  }
+}
+
+function catatEvent(teks, tipe) {
+  const t = Date.now();
+  data.ev.push([t, teks, tipe]);
+  tulis("✓ " + teks, tipe === "on" ? "ok" : tipe === "off" ? "err" : "info");
+  gambarGrafik();
+}
+
+function pulihkanTerminal() {
+  $("terminal").innerHTML = "";
+  data.log.forEach(l => tampilBaris(l[0], l[1], l[2]));
+  $("terminal").scrollTop = $("terminal").scrollHeight;
+}
+
+/* ==================================================================
+   BAGIAN 4 - PERINTAH TERMINAL
+   ================================================================== */
+// "06.00", "6:30", "6" -> "06:00" / "06:30"; salah -> null
+function parseJam(txt) {
+  const m = String(txt || "").trim().match(/^(\d{1,2})(?:[.:](\d{2}))?$/);
+  if (!m) return null;
+  const h = parseInt(m[1], 10), mi = m[2] === undefined ? 0 : parseInt(m[2], 10);
+  if (h > 23 || mi > 59) return null;
+  return p2(h) + ":" + p2(mi);
+}
+const fmtSuhu = v => (v === null || v === undefined ? "-" : Number(v).toFixed(1));
+
+function siapKirim() {
+  if (!client || !client.connected) { tulis("Belum terhubung ke server, perubahan dibatalkan.", "err"); return false; }
+  return true;
+}
+
+function tampilJadwalLampu() {
+  tulis("Jadwal lampu utama (Relay 1) saat ini:", "info");
+  tulis("  Pagi : " + (setelan.pagi || "belum diatur"), "info");
+  tulis("  Sore : " + (setelan.sore || "belum diatur"), "info");
+  tulis("Ubah dengan mengetik:  pagi 06.00   atau   sore 16.00", "info");
+}
+function tampilSuhu() {
+  tulis("Batas suhu saat ini:", "info");
+  tulis("  Minimal : " + fmtSuhu(setelan.min) + " °C", "info");
+  tulis("  Maksimal: " + fmtSuhu(setelan.max) + " °C", "info");
+  tulis("Ubah dengan mengetik:  minimal 37   atau   maksimal 38", "info");
+}
+function tampilMotor() {
+  tulis("Jadwal motor pemutar (Relay 3) terakhir:", "info");
+  if (!setelan.jm.length) tulis("  (belum ada jadwal)", "info");
+  setelan.jm.forEach((j, i) => tulis("  Jadwal " + (i + 1) + " : " + j, "info"));
+  tulis("Ubah:  jadwal 1 06.00   |   Tambah:  jadwal " + (setelan.jm.length + 1) + " 12.00   |   Hapus:  hapus 2", "info");
+}
+
+function setJadwalLampu(kunci, txt) {
+  const j = parseJam(txt);
+  if (!j) return tulis("Format jam salah. Contoh: " + kunci + " " + (kunci === "pagi" ? "06.00" : "16.00"), "err");
+  const lain = kunci === "pagi" ? setelan.sore : setelan.pagi;
+  if (lain) {
+    const pagi = kunci === "pagi" ? j : lain, sore = kunci === "sore" ? j : lain;
+    if (pagi >= sore) return tulis("Ditolak: jam pagi harus lebih awal dari jam sore.", "err");
+  }
+  if (!siapKirim()) return;
+  kirim(kunci === "pagi" ? "jpagi" : "jsore", j);
+  setelan[kunci] = j; simpanSetelan(); gambarInfo();
+  catatEvent("Jadwal lampu " + kunci + " → " + j, "lain");
+}
+
+function setBatasSuhu(kunci, txt) {
+  const v = parseFloat(String(txt || "").replace(",", "."));
+  if (isNaN(v)) return tulis("Format salah. Contoh: " + (kunci === "min" ? "minimal 37" : "maksimal 38"), "err");
+  if (v < T_MIN || v > T_MAX) return tulis("Ditolak: suhu harus " + T_MIN + "-" + T_MAX + " °C", "err");
+  const nilai = Math.round(v * 10) / 10;
+  if (kunci === "min" && setelan.max !== null && nilai >= setelan.max) return tulis("Ditolak: minimal harus lebih kecil dari maksimal (" + fmtSuhu(setelan.max) + ").", "err");
+  if (kunci === "max" && setelan.min !== null && nilai <= setelan.min) return tulis("Ditolak: maksimal harus lebih besar dari minimal (" + fmtSuhu(setelan.min) + ").", "err");
+  if (!siapKirim()) return;
+  kirim(kunci === "min" ? "suhumin" : "suhumax", nilai.toFixed(1));
+  setelan[kunci] = nilai; simpanSetelan(); tampilBatas(); gambarInfo();
+  catatEvent("Suhu " + (kunci === "min" ? "minimal" : "maksimal") + " → " + nilai.toFixed(1) + " °C", "lain");
+}
+
+function kirimJadwalMotor() {
+  kirim("jmotor", setelan.jm.length ? setelan.jm.join(",") : "-");
+}
+function setJadwalMotor(nTxt, jTxt) {
+  const n = parseInt(nTxt, 10);
+  const j = parseJam(jTxt);
+  if (isNaN(n) || n < 1) return tulis("Nomor jadwal salah. Contoh: jadwal 1 06.00", "err");
+  if (!j) return tulis("Format jam salah. Contoh: jadwal " + n + " 06.00", "err");
+  if (n > MAX_JADWAL_MOTOR) return tulis("Ditolak: maksimal " + MAX_JADWAL_MOTOR + " jadwal.", "err");
+  if (n > setelan.jm.length + 1) return tulis("Isi berurutan. Jadwal berikutnya adalah nomor " + (setelan.jm.length + 1) + ".", "err");
+  if (setelan.jm.some((x, i) => x === j && i !== n - 1)) return tulis("Ditolak: jam " + j + " sudah dipakai jadwal lain.", "err");
+  if (!siapKirim()) return;
+  const baru = n <= setelan.jm.length;
+  setelan.jm[n - 1] = j; simpanSetelan(); kirimJadwalMotor(); gambarInfo();
+  catatEvent("Jadwal motor " + n + (baru ? " diubah → " : " ditambahkan → ") + j, "lain");
+}
+function hapusJadwalMotor(nTxt) {
+  const n = parseInt(nTxt, 10);
+  if (isNaN(n) || n < 1 || n > setelan.jm.length) return tulis("Nomor jadwal tidak ada. Ketik motor untuk melihat daftar.", "err");
+  if (!siapKirim()) return;
+  const j = setelan.jm.splice(n - 1, 1)[0];
+  simpanSetelan(); kirimJadwalMotor(); gambarInfo();
+  catatEvent("Jadwal motor " + n + " (" + j + ") dihapus", "lain");
+}
+
+function jalankanPerintah(teks) {
+  const bagian = teks.trim().split(/\s+/);
+  const cmd = (bagian[0] || "").toLowerCase();
+  if (!cmd) return;
+  tulis("> " + teks.trim(), "cmd");
+
+  switch (cmd) {
+    case "help":
+      tulis("Perintah:", "info");
+      tulis("  jadwal            lihat jadwal lampu utama (Relay 1)", "info");
+      tulis("  pagi 06.00        ubah jam lampu pagi", "info");
+      tulis("  sore 16.00        ubah jam lampu sore", "info");
+      tulis("  suhu              lihat batas suhu minimal & maksimal", "info");
+      tulis("  minimal 37        ubah suhu minimal (" + T_MIN + "-" + T_MAX + " °C)", "info");
+      tulis("  maksimal 38       ubah suhu maksimal (" + T_MIN + "-" + T_MAX + " °C)", "info");
+      tulis("  motor             lihat jadwal motor pemutar (Relay 3)", "info");
+      tulis("  jadwal 1 06.00    ubah jadwal motor ke-1 (nomor baru = tambah)", "info");
+      tulis("  hapus 2           hapus jadwal motor ke-2", "info");
+      tulis("  status            kondisi terakhir alat", "info");
+      break;
+    case "jadwal":
+      if (bagian.length === 1) tampilJadwalLampu();
+      else if (bagian.length === 3) setJadwalMotor(bagian[1], bagian[2]);
+      else tulis("Format: jadwal  (lihat lampu)  atau  jadwal 1 06.00  (jadwal motor)", "err");
+      break;
+    case "pagi": case "sore":
+      if (bagian.length < 2) tulis("Contoh: " + cmd + (cmd === "pagi" ? " 06.00" : " 16.00"), "err");
+      else setJadwalLampu(cmd, bagian[1]);
+      break;
+    case "suhu":
+      tampilSuhu();
+      break;
+    case "minimal": case "min":
+      if (bagian.length < 2) tulis("Contoh: minimal 37", "err"); else setBatasSuhu("min", bagian[1]);
+      break;
+    case "maksimal": case "maks": case "max":
+      if (bagian.length < 2) tulis("Contoh: maksimal 38", "err"); else setBatasSuhu("max", bagian[1]);
+      break;
+    case "motor":
+      if (bagian.length === 1) tampilMotor();
+      else if (bagian.length === 3) setJadwalMotor(bagian[1], bagian[2]);
+      else tulis("Format: motor  (lihat)  atau  motor 1 06.00", "err");
+      break;
+    case "hapus":
+      if (bagian.length < 2) tulis("Contoh: hapus 2", "err"); else hapusJadwalMotor(bagian[1]);
+      break;
+    case "status":
+      if (!status) return tulis("Belum ada data dari alat.", "err");
+      tulis("Suhu: " + (status.suhu === null ? "ERR" : Number(status.suhu).toFixed(1) + " °C") +
+            " | Batas: " + fmtSuhu(setelan.min) + "–" + fmtSuhu(setelan.max) + " °C" +
+            " | Mode: " + (status.mode === 1 ? "AUTO" : "MANUAL") +
+            " | Hari: " + (status.hari > 0 ? status.hari : "-"), "info");
+      tulis("Relay: " + RELAYS.map((r, i) => (i + 1) + "=" + (status.r[r.idx] === 1 ? "ON" : "OFF")).join("  "), "info");
+      break;
+    default:
+      tulis("Perintah tidak dikenal: " + cmd + " (ketik help)", "err");
+  }
+}
+
+$("formTerm").onsubmit = e => {
+  e.preventDefault();
+  const v = $("inTerm").value;
+  $("inTerm").value = "";
+  jalankanPerintah(v);
+};
+
+/* ==================================================================
+   BAGIAN 5 - KONEKSI MQTT
    ================================================================== */
 let client = null;
 let status = null;
+let prev = null;
 let alatOnline = false;
 let timerOffline = null;
 
@@ -147,6 +490,7 @@ function hubungkan() {
   c.on("connect", () => {
     badge("statusServer", "terhubung", true);
     pesan("");
+    tulis("Terhubung ke server.", "info");
     c.subscribe([PREFIX + "/status", PREFIX + "/online", PREFIX + "/log"]);
   });
 
@@ -167,12 +511,52 @@ function kirim(nama, nilai) {
   client.publish(PREFIX + "/cmd/" + nama, String(nilai));
 }
 
+// Bandingkan status lama dan baru, catat setiap perubahan
+function deteksiPerubahan(lama, baru) {
+  if (!lama) return;
+  if (lama.mode !== baru.mode) catatEvent("Mode sistem → " + (baru.mode === 1 ? "AUTO" : "MANUAL"), baru.mode === 1 ? "on" : "off");
+  if (lama.motorAuto !== baru.motorAuto) catatEvent("Mode motor → " + (baru.motorAuto === 1 ? "AUTO" : "MANUAL"), baru.motorAuto === 1 ? "on" : "off");
+  if (lama.sensor !== baru.sensor) catatEvent("Sensor suhu → " + (baru.sensor === 1 ? "ON" : "OFF"), baru.sensor === 1 ? "on" : "off");
+  RELAYS.forEach(r => {
+    if (lama.r && baru.r && lama.r[r.idx] !== baru.r[r.idx]) {
+      catatEvent(r.nama.split(" - ")[1] + " → " + (baru.r[r.idx] === 1 ? "ON" : "OFF"), baru.r[r.idx] === 1 ? "on" : "off");
+    }
+  });
+  if ((lama.hari || 0) === 0 && baru.hari > 0) catatEvent("Penetasan dimulai (hari ke-" + baru.hari + ")", "on");
+  else if ((lama.hari || 0) > 0 && baru.hari !== lama.hari) catatEvent("Hari penetasan → " + baru.hari, "lain");
+}
+
+// Jika ESP ikut melaporkan jadwal/batas suhu di JSON status, nilainya dipakai.
+// Field opsional: pagi, sore ("HH:MM"), tmin, tmax (angka), jm (array "HH:MM")
+function terapkanDariAlat(s) {
+  let ubah = false;
+  const set = (k, v, label) => {
+    if (v === null || v === undefined || v === setelan[k]) return;
+    if (setelan[k] !== null) catatEvent(label + " → " + (k === "min" || k === "max" ? fmtSuhu(v) + " °C" : v) + " (dari alat)", "lain");
+    setelan[k] = v; ubah = true;
+  };
+  if (typeof s.pagi === "string") set("pagi", parseJam(s.pagi), "Jadwal lampu pagi");
+  if (typeof s.sore === "string") set("sore", parseJam(s.sore), "Jadwal lampu sore");
+  if (s.tmin !== undefined && !isNaN(Number(s.tmin))) set("min", Math.round(Number(s.tmin) * 10) / 10, "Suhu minimal");
+  if (s.tmax !== undefined && !isNaN(Number(s.tmax))) set("max", Math.round(Number(s.tmax) * 10) / 10, "Suhu maksimal");
+  if (Array.isArray(s.jm)) {
+    const jm = s.jm.map(parseJam).filter(Boolean);
+    if (JSON.stringify(jm) !== JSON.stringify(setelan.jm)) {
+      if (setelan.jm.length) catatEvent("Jadwal motor diperbarui (dari alat)", "lain");
+      setelan.jm = jm; ubah = true;
+    }
+  }
+  if (ubah) { simpanSetelan(); tampilBatas(); }
+}
+
 function pesanMasuk(m) {
   const t = m.destinationName, isi = m.payloadString;
   if (t === PREFIX + "/status") {
     try { status = JSON.parse(isi); } catch { return; }
-    $("update").textContent = new Date().toLocaleTimeString("id-ID");
+    cekGantiHari();
+    $("update").textContent = jam(Date.now());
 
+    if (!alatOnline) tulis("ESP online.", "ok");
     alatOnline = true;
     badge("statusAlat", "ESP online", true);
 
@@ -180,35 +564,114 @@ function pesanMasuk(m) {
     timerOffline = setTimeout(() => {
       alatOnline = false;
       badge("statusAlat", "ESP offline", false);
+      tulis("ESP offline.", "err");
     }, 6000);
+
+    terapkanDariAlat(status);
+    deteksiPerubahan(prev, status);
+    prev = JSON.parse(JSON.stringify(status));
+
+    // Catat titik grafik
+    const now = Date.now();
+    if (status.suhu !== null && now - lastPt >= SAMPLE_MS) {
+      lastPt = now;
+      data.pts.push([now, Number(status.suhu), setelan.min, setelan.max]);
+      if (data.pts.length > MAX_PTS) data.pts.shift();
+      simpanData();
+      gambarGrafik();
+    }
 
     gambar();
   } else if (t === PREFIX + "/online") {
-    alatOnline = (isi === "1");
+    const baru = (isi === "1");
+    if (baru !== alatOnline) tulis(baru ? "ESP online." : "ESP offline.", baru ? "ok" : "err");
+    alatOnline = baru;
     badge("statusAlat", alatOnline ? "ESP online" : "ESP offline", alatOnline);
   } else if (t === PREFIX + "/log") {
-    const el = $("log");
-    const jam = new Date().toLocaleTimeString("id-ID");
-    el.textContent = (jam + "  " + isi + "\n" + (el.textContent === "-" ? "" : el.textContent)).split("\n").slice(0, 8).join("\n");
+    tulis("ESP: " + isi, "info");
   }
 }
+
 /* ==================================================================
-   BAGIAN 3 - TAMPILAN & TOMBOL
+   BAGIAN 6 - TAMPILAN & TOMBOL
    ================================================================== */
 function tombolOnOff(btn, aktif, teksOn, teksOff) {
   btn.textContent = aktif ? teksOn : teksOff;
   btn.classList.toggle("on", aktif);
 }
 
+function tampilBatas() {
+  $("tmin").textContent = fmtSuhu(setelan.min);
+  $("tmax").textContent = fmtSuhu(setelan.max);
+}
+
 function buatDaftarRelay() {
   $("daftarRelay").innerHTML = RELAYS.map((r, i) => `
-    <div class="relay row">
+    <div class="relay">
       <div><b>${r.nama}</b><div class="muted" id="ket${i}"></div></div>
+      <div class="info"><div class="a" id="infA${i}"></div><div class="b" id="infB${i}"></div></div>
       <button id="relay${i}"></button>
     </div>`).join("");
   RELAYS.forEach((r, i) => {
-    $("relay" + i).onclick = () => kirim(r.cmd, status && status.r[r.idx] === 1 ? 0 : 1);
+    $("relay" + i).onclick = () => {
+      if (!status) return;
+      // Penjagaan: relay yang diatur otomatis tidak boleh dikontrol manual
+      if (r.kunci(status)) {
+        return tulis("Ditolak: " + r.nama.split(" - ")[1] + " terkunci, sedang diatur otomatis.", "err");
+      }
+      const nilai = status.r[r.idx] === 1 ? 0 : 1;
+      // Penjagaan: pemanas tidak boleh dinyalakan jika suhu sudah mencapai batas maksimal
+      if (r.idx === 1 && nilai === 1 && status.suhu !== null && setelan.max !== null && Number(status.suhu) >= setelan.max) {
+        return tulis("Ditolak: suhu " + Number(status.suhu).toFixed(1) + " °C sudah mencapai batas maksimal " + fmtSuhu(setelan.max) + " °C.", "err");
+      }
+      tulis("Kirim: " + r.nama.split(" - ")[1] + " " + (nilai ? "ON" : "OFF"), "cmd");
+      kirim(r.cmd, nilai);
+    };
   });
+}
+
+// Jadwal motor berikutnya dari jam sekarang
+function motorBerikutnya() {
+  if (!setelan.jm.length) return null;
+  const d = new Date(), kini = d.getHours() * 60 + d.getMinutes();
+  const daftar = setelan.jm.map(j => { const [h, m] = j.split(":").map(Number); return h * 60 + m; }).sort((a, b) => a - b);
+  const f = x => p2(Math.floor(x / 60)) + ":" + p2(x % 60);
+  const next = daftar.find(x => x > kini);
+  return next !== undefined ? "hari ini " + f(next) : "besok " + f(daftar[0]);
+}
+
+// Contoh hasil aturan otomatis di sebelah kanan tiap relay
+function gambarInfo() {
+  const s = status, ada = s && s.r;
+  const nyala = i => ada && s.r[RELAYS[i].idx] === 1;
+  const set = (i, a, b) => { $("infA" + i).textContent = a; $("infB" + i).textContent = b; };
+
+  // Relay 1: jadwal lampu
+  set(0,
+      "Pagi " + (setelan.pagi || "-") + " · Sore " + (setelan.sore || "-"),
+      ada ? (nyala(0) ? "Lampu sedang menyala" : "Lampu sedang mati") : "Menunggu data alat");
+
+  // Relay 2: pemanas menurut suhu
+  let hasil = "Menunggu data alat";
+  if (ada) {
+    const suhu = s.suhu === null ? null : Number(s.suhu);
+    if (suhu === null) hasil = "Sensor error";
+    else if (s.sensor === 0) hasil = "Sensor OFF → pemanas mati";
+    else if (setelan.min !== null && suhu < setelan.min) hasil = "Di bawah minimal → pemanas ON";
+    else if (setelan.max !== null && suhu > setelan.max) hasil = "Di atas maksimal → pemanas OFF";
+    else hasil = "Dalam batas → pemanas " + (nyala(1) ? "ON" : "OFF");
+  }
+  set(1, "Batas " + fmtSuhu(setelan.min) + "–" + fmtSuhu(setelan.max) + " °C", hasil);
+
+  // Relay 3: motor menurut mode motor & jadwal
+  const nx = motorBerikutnya();
+  const modeMotor = ada ? (s.motorAuto === 1 ? "AUTO" : "MANUAL") : "-";
+  set(2,
+      "Motor " + modeMotor + " · " + (setelan.jm.length ? setelan.jm.length + " jadwal" : "belum ada jadwal"),
+      ada && s.motorAuto === 1 ? (nx ? "Putar berikutnya " + nx : "Tidak ada jadwal putar") : (ada ? "Dikontrol manual" : "Menunggu data alat"));
+
+  // Relay 4: humidifier
+  set(3, "Mengikuti mode sistem", ada ? (nyala(3) ? "Humidifier menyala" : "Humidifier mati") : "Menunggu data alat");
 }
 
 function gambar() {
@@ -225,14 +688,15 @@ function gambar() {
     const terkunci = r.kunci(status);
     tombolOnOff(btn, status.r[r.idx] === 1, "ON", "OFF");
     btn.disabled = terkunci;
-    $("ket" + i).textContent = (terkunci ? "Terkunci (mode AUTO)" : "Manual") + " · nyala hari ini: " + status.n[r.idx] + "x";
+    $("ket" + i).textContent = (terkunci ? "Terkunci (diatur otomatis)" : "Manual") + " · nyala hari ini: " + status.n[r.idx] + "x";
   });
+  gambarInfo();
 }
 
-$("btnMode").onclick      = () => status && kirim("mode", status.mode === 1 ? 0 : 1);
-$("btnMotorAuto").onclick = () => status && kirim("motorauto", status.motorAuto === 1 ? 0 : 1);
-$("btnSensor").onclick    = () => status && kirim("sensor", status.sensor === 1 ? 0 : 1);
-$("btnMulai").onclick     = () => { if (confirm("Mulai hitung hari penetasan dari sekarang?")) kirim("mulai", 1); };
+$("btnMode").onclick      = () => { if (!status) return; const v = status.mode === 1 ? 0 : 1; tulis("Kirim: Mode sistem " + (v ? "AUTO" : "MANUAL"), "cmd"); kirim("mode", v); };
+$("btnMotorAuto").onclick = () => { if (!status) return; const v = status.motorAuto === 1 ? 0 : 1; tulis("Kirim: Mode motor " + (v ? "AUTO" : "MANUAL"), "cmd"); kirim("motorauto", v); };
+$("btnSensor").onclick    = () => { if (!status) return; const v = status.sensor === 1 ? 0 : 1; tulis("Kirim: Sensor suhu " + (v ? "ON" : "OFF"), "cmd"); kirim("sensor", v); };
+$("btnMulai").onclick     = () => { if (confirm("Mulai hitung hari penetasan dari sekarang?")) { tulis("Kirim: Mulai hitung penetasan", "cmd"); kirim("mulai", 1); } };
 
 $("btnSimpan").onclick = () => {
   const u = $("inUser").value.trim();
@@ -251,7 +715,134 @@ $("btnKeluar").onclick = () => {
 };
 
 /* ==================================================================
-   BAGIAN 4 - MULAI
+   BAGIAN 7 - GRAFIK (canvas, sumbu waktu 00:00 - 24:00)
+   ================================================================== */
+function warna(nama) { return getComputedStyle(document.documentElement).getPropertyValue(nama).trim(); }
+
+function gambarGrafik() {
+  const cv = $("grafik");
+  const w = cv.clientWidth, h = cv.clientHeight;
+  if (!w || !h) return;
+  const dpr = window.devicePixelRatio || 1;
+  cv.width = w * dpr; cv.height = h * dpr;
+  const ctx = cv.getContext("2d");
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, w, h);
+
+  const pl = 40, pr = 12, pt = 14, pb = 26;
+  const pw = w - pl - pr, ph = h - pt - pb;
+  const t0 = awalHari(), DAY = 86400000;
+
+  // Rentang suhu dinamis
+  const nilai = data.pts.map(p => p[1]);
+  data.pts.forEach(p => { if (p[2] != null) nilai.push(p[2]); if (p[3] != null) nilai.push(p[3]); });
+  if (setelan.min !== null) nilai.push(setelan.min);
+  if (setelan.max !== null) nilai.push(setelan.max);
+  let lo = nilai.length ? Math.min(...nilai) : 36;
+  let hi = nilai.length ? Math.max(...nilai) : 39;
+  lo = Math.floor(lo - 1); hi = Math.ceil(hi + 1);
+  if (hi - lo < 4) { const mid = (hi + lo) / 2; lo = Math.floor(mid - 2); hi = lo + 4; }
+
+  const X = t => pl + ((t - t0) / DAY) * pw;
+  const Y = v => pt + (1 - (v - lo) / (hi - lo)) * ph;
+
+  const cMuted = warna("--muted"), cHeat = warna("--heat");
+  ctx.font = "11px system-ui, sans-serif";
+  ctx.textBaseline = "middle";
+
+  // Garis bantu & label suhu
+  ctx.lineWidth = 1;
+  const langkah = (hi - lo) / 4;
+  for (let i = 0; i <= 4; i++) {
+    const v = lo + langkah * i, y = Y(v);
+    ctx.strokeStyle = "rgba(140,170,210,.15)";
+    ctx.beginPath(); ctx.moveTo(pl, y); ctx.lineTo(w - pr, y); ctx.stroke();
+    ctx.fillStyle = cMuted; ctx.textAlign = "right";
+    ctx.fillText(v.toFixed(1), pl - 5, y);
+  }
+  // Label jam (tiap 3 jam)
+  ctx.textAlign = "center"; ctx.textBaseline = "top";
+  for (let j = 0; j <= 24; j += 3) {
+    const x = pl + (j / 24) * pw;
+    ctx.strokeStyle = "rgba(140,170,210,.10)";
+    ctx.beginPath(); ctx.moveTo(x, pt); ctx.lineTo(x, pt + ph); ctx.stroke();
+    ctx.fillStyle = cMuted;
+    ctx.fillText(p2(j % 24) + ":00", Math.min(Math.max(x, pl + 12), w - pr - 12), pt + ph + 6);
+  }
+
+  // Garis "sekarang"
+  const now = Date.now();
+  ctx.strokeStyle = "rgba(255,255,255,.25)"; ctx.setLineDash([2, 3]);
+  ctx.beginPath(); ctx.moveTo(X(now), pt); ctx.lineTo(X(now), pt + ph); ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Garis batas minimal & maksimal (bertingkat mengikuti perubahan)
+  function garisBatas(idx, kini, c) {
+    ctx.strokeStyle = c; ctx.lineWidth = 1.5; ctx.setLineDash([6, 4]);
+    ctx.beginPath();
+    let mulai = false, akhir = null;
+    data.pts.forEach(p => {
+      const v = p[idx];
+      if (v === null || v === undefined) return;
+      const x = X(p[0]);
+      if (!mulai) { ctx.moveTo(x, Y(v)); mulai = true; }
+      else { ctx.lineTo(x, Y(akhir)); ctx.lineTo(x, Y(v)); }
+      akhir = v;
+    });
+    if (mulai) {
+      ctx.lineTo(X(now), Y(akhir));
+      if (kini !== null && kini !== akhir) ctx.lineTo(X(now), Y(kini));
+    }
+    ctx.stroke(); ctx.setLineDash([]);
+  }
+  garisBatas(2, setelan.min, warna("--lo"));
+  garisBatas(3, setelan.max, warna("--hi"));
+
+  // Garis suhu (putus jika ada jeda data > 2 menit)
+  ctx.strokeStyle = cHeat; ctx.lineWidth = 2; ctx.lineJoin = "round";
+  ctx.beginPath();
+  let lastT = null;
+  data.pts.forEach(p => {
+    const x = X(p[0]), y = Y(p[1]);
+    if (lastT === null || p[0] - lastT > 120000) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    lastT = p[0];
+  });
+  ctx.stroke();
+  if (data.pts.length) {
+    const p = data.pts[data.pts.length - 1];
+    ctx.fillStyle = cHeat; ctx.beginPath(); ctx.arc(X(p[0]), Y(p[1]), 3.5, 0, 7); ctx.fill();
+  }
+
+  // Penanda perubahan (garis tegak + titik)
+  const cWarna = { on: warna("--on"), off: warna("--warn"), lain: warna("--accent") };
+  data.ev.forEach(e => {
+    const x = X(e[0]);
+    ctx.strokeStyle = cWarna[e[2]] || cWarna.lain; ctx.globalAlpha = .55; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(x, pt); ctx.lineTo(x, pt + ph); ctx.stroke();
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = cWarna[e[2]] || cWarna.lain;
+    ctx.beginPath(); ctx.arc(x, pt + 3, 3, 0, 7); ctx.fill();
+  });
+
+  // Jam pada penanda (hindari tumpang tindih)
+  ctx.textAlign = "left"; ctx.textBaseline = "bottom"; ctx.font = "10px system-ui, sans-serif";
+  let akhirLabel = -999;
+  data.ev.forEach(e => {
+    const x = X(e[0]);
+    if (x - akhirLabel > 34) {
+      ctx.fillStyle = cMuted;
+      ctx.fillText(jam(e[0], false), Math.min(x + 3, w - pr - 30), pt + ph - 2);
+      akhirLabel = x;
+    }
+  });
+
+  $("infoHari").textContent = tanggalKey() + " · " + data.pts.length + " titik · " + data.ev.length + " perubahan";
+}
+
+window.addEventListener("resize", gambarGrafik);
+
+/* ==================================================================
+   BAGIAN 8 - MULAI
    ================================================================== */
 function mulai() {
   const u = baca("iot_user");
@@ -266,11 +857,20 @@ function mulai() {
   // Membentuk PREFIX unik dari gabungan username dan password
   PREFIX = "ilham-inkubator-" + u + "-" + p;
   $("kartuLogin").classList.add("hidden");
+
+  muatData();
+  muatSetelan();
+  pulihkanTerminal();
+  tampilBatas();
+  gambarInfo();
+  gambarGrafik();
   hubungkan();
 }
 
 buatDaftarRelay();
+gambarInfo();
 mulai();
+setInterval(gambarInfo, 30000); // segarkan "jadwal motor berikutnya"
 </script>
 </body>
 </html>
