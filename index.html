@@ -409,6 +409,7 @@ function jalankanPerintah(teks) {
       tulis("  jadwal 1 06.00    ubah jadwal motor ke-1 (nomor baru = tambah)", "info");
       tulis("  hapus 2           hapus jadwal motor ke-2", "info");
       tulis("  status            kondisi terakhir alat", "info");
+      tulis("  offset -2.5       koreksi pembacaan sensor suhu", "info");
       break;
     case "jadwal":
       if (bagian.length === 1) tampilJadwalLampu();
@@ -444,6 +445,15 @@ function jalankanPerintah(teks) {
             " | Hari: " + (status.hari > 0 ? status.hari : "-"), "info");
       tulis("Relay: " + RELAYS.map((r, i) => (i + 1) + "=" + (status.r[r.idx] === 1 ? "ON" : "OFF")).join("  "), "info");
       break;
+    case "offset": {
+      if (bagian.length < 2) { tulis("Contoh: offset -2.5", "err"); break; }
+      const v = parseFloat(bagian[1].replace(",", "."));
+      if (isNaN(v) || v < -10 || v > 10) { tulis("Ditolak: offset harus -10 sampai 10 °C", "err"); break; }
+      if (!siapKirim()) break;
+      kirim("suhuoffset", v.toFixed(1));
+      catatEvent("Offset sensor → " + v.toFixed(1) + " °C", "lain");
+      break;
+    }
     default:
       tulis("Perintah tidak dikenal: " + cmd + " (ketik help)", "err");
   }
